@@ -49,6 +49,7 @@ for i = 1:n_train
     BMDi(i,:) = [0, cumsum(Vseg * dx)]; % M(0) = 0; each interval adds V times dx
 end
 
+
 % At each x, compare all train positions (down the column).
 SFD = max(abs(SFDi), [], 1);
 % At an interior node the preceding segment gives the other side of a shear jump.
@@ -58,6 +59,8 @@ BMD = max(BMDi, [], 1);               % Positive sagging moment envelope (N mm)
 %% 2. Global peaks across all train positions and bridge sections
 Vmax = max(SFD);                     % Maximum shear magnitude on the grid
 Mmax = max(BMD);                     % Maximum sagging moment on the grid
+
+
 % A tolerance includes mirror-image cases that differ only by roundoff.
 tolV = 1e-10 * max(1, Vmax);
 tolM = 1e-10 * max(1, Mmax);
@@ -85,7 +88,36 @@ for k = 1:size(momentPeaks,1)
             train_shift(i), x_train(1) + train_shift(i), x(j), BMDi(i,j));
 end
 
-%% 3. Draw both diagrams at the first shear-critical and moment-critical positions
+%% 3. Section properties (Design 0)
+b = [80 1.27 1.27 5 5 100]
+h = [1.27 73.73 73.73 1.27 1.27 1.27]
+yc = [0.635 38.135 38.135 74.365 74.365 75.635]
+ybar = sum(b.*h.*yc)/sum(b.*h)
+I = sum(b.*h.^3/12 + b.*h.*(yc-ybar).^2)
+Qglue = 100*1.27*(75.635 - ybar)
+Qcent = 80*1.27*(ybar - 0.635) + 2*1.27*(ybar - 1.27)*(ybar - 1.27)/2
+
+
+%% 4. Stresses, capacities and FOS
+H = 76.27;
+S_top = BMD .* (H - ybar) / I;
+S_bot = BMD .* ybar / I;
+T_cent = SFD .* Qcent / (I * 2 * 1.27);
+T_glue = SFD .* Qglue / (I * 10);
+
+t = 1.27
+k0 = pi^2*4000/(12*(1-0.2^2))
+
+S_buck1 = 4 * k0 * (t/78.73)^2
+S_buck2 = 0.425 * k0 * (t/10)^2
+S_buck3 = 6 * k0 * (t/(H - t - ybar))^2
+T_buck = 5 * k0 * ((t/73.73)^2 + (t/400)^2)
+
+
+%% LEI DO FOS PLEASE
+
+
+%% 5. Draw both diagrams at the first shear-critical and moment-critical positions
 % All tied positions are printed above. Each column of this figure is one train position.
 figure('Name', 'Critical train positions', 'NumberTitle', 'off', 'Color', 'w', ...
        'Units', 'normalized', 'Position', [0.12 0.15 0.74 0.68]);
@@ -113,7 +145,7 @@ for col = 1:2
     end
 end
 
-%% 4. Optional: view a specified train position or play the crossing
+%% 6. Optional: view a specified train position or play the crossing
 if animate_train || ~isempty(show_shift)
     if animate_train
         frames = 1:n_train;
